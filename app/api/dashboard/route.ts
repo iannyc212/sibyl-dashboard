@@ -26,47 +26,47 @@ export async function GET() {
     latestKalshiRes,
   ] = await Promise.all([
     // Kalshi probability chart — 72h
-    sb.schema('sibyl').from('signals')
+    sb.from('sibyl_signals')
       .select('value, timestamp')
       .eq('signal_type', 'prediction_probability')
       .gte('timestamp', cutoff72h)
       .order('timestamp', { ascending: true }),
 
     // NOAA Kp index chart — 72h
-    sb.schema('sibyl').from('signals')
+    sb.from('sibyl_signals')
       .select('value, timestamp')
       .eq('signal_type', 'geomagnetic_kp')
       .gte('timestamp', cutoff72h)
       .order('timestamp', { ascending: true }),
 
     // Signal health — latest timestamp per family
-    sb.schema('sibyl').from('signals')
+    sb.from('sibyl_signals')
       .select('signal_family, timestamp')
       .order('timestamp', { ascending: false })
       .limit(5000),
 
     // Next upcoming event
-    sb.schema('sibyl').from('events')
+    sb.from('sibyl_events')
       .select('*')
       .gte('scheduled_at', now)
       .order('scheduled_at', { ascending: true })
       .limit(1),
 
     // Recent discrepancy/correlation findings
-    sb.schema('sibyl').from('correlation_findings')
+    sb.from('sibyl_correlation_findings')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(10),
 
     // All 2026 FOMC events
-    sb.schema('sibyl').from('events')
+    sb.from('sibyl_events')
       .select('*')
       .gte('scheduled_at', '2026-01-01T00:00:00Z')
       .lte('scheduled_at', '2026-12-31T23:59:59Z')
       .order('scheduled_at', { ascending: true }),
 
     // Latest Kalshi prediction probability value
-    sb.schema('sibyl').from('signals')
+    sb.from('sibyl_signals')
       .select('value, timestamp')
       .eq('signal_type', 'prediction_probability')
       .order('timestamp', { ascending: false })
