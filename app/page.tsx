@@ -161,7 +161,7 @@ export default function SibylDashboard() {
   // Chart data formatting
   const kalshiChartData = (data?.kalshiChart ?? []).map(p => ({
     t: fmtTime(p.timestamp),
-    v: Math.round(Number(p.value) * 100) / 100,
+    v: Math.round(Number(p.value) * 1000) / 10, // convert 0.745 → 74.5
   }))
 
   const kpChartData = (data?.kpChart ?? []).map(p => ({
@@ -169,7 +169,7 @@ export default function SibylDashboard() {
     v: Number(p.value),
   }))
 
-  const holdProb = data?.latestKalshi ? Math.round(Number(data.latestKalshi.value)) : null
+  const holdProb = data?.latestKalshi ? Math.round(Number(data.latestKalshi.value) * 100) : null
 
   return (
     <main className="min-h-screen bg-zinc-950 p-4 md:p-6 max-w-5xl mx-auto">
