@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic'
 function serverClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false } }
   )
 }
 
@@ -89,5 +90,13 @@ export async function GET() {
     allEvents: allEventsRes.data ?? [],
     latestKalshi: latestKalshiRes.data?.[0] ?? null,
     fetchedAt: new Date().toISOString(),
+    _errors: {
+      kalshiChart: kalshiChartRes.error?.message,
+      kpChart: kpChartRes.error?.message,
+      signalHealth: signalHealthRes.error?.message,
+      nextEvent: nextEventRes.error?.message,
+      discrepancy: discrepancyRes.error?.message,
+      allEvents: allEventsRes.error?.message,
+    },
   })
 }
