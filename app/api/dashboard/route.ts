@@ -32,11 +32,12 @@ export async function GET() {
       .gte('timestamp', cutoff72h)
       .order('timestamp', { ascending: true }),
 
-    // NOAA Kp index chart — 72h
+    // NOAA Kp index chart — 72h (Kp scale is 0–9, filter sentinel values)
     sb.from('sibyl_signals')
       .select('value, timestamp')
       .eq('signal_type', 'geomagnetic_kp')
       .gte('timestamp', cutoff72h)
+      .lte('value', 9)
       .order('timestamp', { ascending: true }),
 
     // Signal health — latest timestamp per family

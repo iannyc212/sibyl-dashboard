@@ -16,7 +16,10 @@ interface FomcEvent {
   scheduled_at: string
   event_status: string
   event_subtype: string | null
-  resolved_outcome: string | null
+  label: string | null
+  resolution: string | null
+  resolution_value: number | null
+  resolution_direction: string | null
 }
 
 interface CorrelationFinding {
@@ -41,19 +44,25 @@ interface DashboardData {
   fetchedAt: string
 }
 
-// ─── Workers config ───────────────────────────────────────────────────────────
+// ─── Signal family thresholds (minutes) ───────────────────────────────────────
+// Keys are signal_family values from the DB (uppercase)
 
-const WORKERS = [
-  { name: 'FRED',        family: 'fred',        thresholdMin: 360 },
-  { name: 'Kalshi',      family: 'kalshi',       thresholdMin: 480 },
-  { name: 'NASA',        family: 'nasa',         thresholdMin: 1440 },
-  { name: 'NOAA',        family: 'noaa',         thresholdMin: 60 },
-  { name: 'News',        family: 'news',         thresholdMin: 60 },
-  { name: 'Linker',      family: 'linker',       thresholdMin: 30 },
-  { name: 'Discrepancy', family: 'discrepancy',  thresholdMin: 360 },
-  { name: 'Alerts',      family: 'alerts',       thresholdMin: 30 },
-  { name: 'Correlation', family: 'correlation',  thresholdMin: 10080 },
-]
+const FAMILY_THRESHOLDS: Record<string, number> = {
+  FRED:         360,
+  KALSHI:       480,
+  NASA:         1440,
+  NOAA:         60,
+  NEWS:         60,
+  LINKER:       30,
+  DISCREPANCY:  360,
+  ALERTS:       30,
+  CORRELATION:  10080,
+  // Actual families observed in DB
+  MARKET:       480,
+  STRUCTURAL:   360,
+  NARRATIVE:    60,
+  COORDINATION: 10080,
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -290,23 +299,29 @@ export default function SibylDashboard() {
             <section className="rounded-xl bg-zinc-900 border border-zinc-800 p-5">
               <p className="text-xs text-zinc-500 uppercase tracking-widest mb-4">Signal Health</p>
               <div className="space-y-2">
-                {WORKERS.map(w => {
-                  const lastSeen = data.signalHealth[w.family]
-                  const status = workerStatus(lastSeen, w.thresholdMin)
-                  return (
-                    <div key={w.family} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLOR[status]} ${status === 'green' ? 'shadow-[0_0_6px_1px_rgba(34,197,94,0.5)]' : ''}`}
-                        />
-                        <span className="text-sm text-zinc-200">{w.name}</span>
-                      </div>
-                      <span className="text-xs text-zinc-500 tabular-nums">
-                        {lastSeen ? fmtRelTime(lastSeen) : 'never'}
-                      </span>
-                    </div>
-                  )
-                })}
+                {Object.entries(data.signalHealth).length === 0 ? (
+                  <p className="text-zinc-600 text-sm">No signal data</p>
+                ) : (
+                  Object.entries(data.signalHealth)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([family, lastSeen]) => {
+                      const threshold = FAMILY_THRESHOLDS[family.toUpperCase()] ?? 360
+                      const status = workerStatus(lastSeen, threshold)
+                      return (
+                        <div key={family} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${STATUS_COLOR[status]} ${status === 'green' ? 'shadow-[0_0_6px_1px_rgba(34,197,94,0.5)]' : ''}`}
+                            />
+                            <span className="text-sm text-zinc-200">{family}</span>
+                          </div>
+                          <span className="text-xs text-zinc-500 tabular-nums">
+                            {fmtRelTime(lastSeen)}
+                          </span>
+                        </div>
+                      )
+                    })
+                )}
               </div>
             </section>
 
@@ -432,7 +447,7 @@ export default function SibylDashboard() {
                       {/* Timeline dot */}
                       <div className="flex flex-col items-center mt-1">
                         <div className={`w-2 h-2 rounded-full shrink-0 ${
-                          ev.resolved_outcome
+                          ev.resolution
                             ? 'bg-green-500'
                             : isPast
                               ? 'bg-zinc-600'
@@ -448,7 +463,7 @@ export default function SibylDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-sm font-medium ${isPast ? 'text-zinc-500' : 'text-zinc-200'}`}>
-                            {fmtDate(ev.scheduled_at)}
+                            {ev.label ?? fmtDate(ev.scheduled_at)}
                           </span>
                           {isNext && (
                             <span className="text-xs text-indigo-400 font-semibold">← next</span>
@@ -456,18 +471,17 @@ export default function SibylDashboard() {
                           <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${eventStatusBadge(ev.event_status)}`}>
                             {ev.event_status}
                           </span>
-                          {ev.event_subtype && (
-                            <span className="text-xs text-zinc-600">{ev.event_subtype}</span>
-                          )}
                         </div>
-                        {ev.resolved_outcome && (
+                        <p className="text-xs text-zinc-600">{fmtDate(ev.scheduled_at)}</p>
+                        {ev.resolution && (
                           <p className="text-xs text-green-400 mt-0.5">
-                            Outcome: {ev.resolved_outcome}
+                            Outcome: <span className="font-semibold">{ev.resolution}</span>
+                            {ev.resolution_direction && ` · ${ev.resolution_direction}`}
                           </p>
                         )}
                       </div>
 
-                      {!isPast && !ev.resolved_outcome && (
+                      {!isPast && !ev.resolution && (
                         <span className="text-xs text-zinc-600 whitespace-nowrap mt-0.5">
                           {daysUntil(ev.scheduled_at)}d
                         </span>
